@@ -1,0 +1,391 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="#ECECEC">
+
+    <TextView
+        android:id="@+id/resultView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#FFFFFF"
+        android:gravity="right"
+        android:text="0"
+        android:textSize="18sp"
+        android:padding="6dp"
+        android:ellipsize="start"
+        android:singleLine="true"
+        android:scrollHorizontally="true"
+        android:layout_marginBottom="4dp"/>
+
+    <!-- Main Display (bigger text) -->
+    <EditText
+        android:id="@+id/editText"
+        android:layout_width="match_parent"
+        android:layout_height="80dp"
+        android:background="#FFFFFF"
+        android:gravity="right"
+        android:hint="0"
+        android:textSize="28sp"
+        android:inputType="none"
+        android:focusable="false"
+        android:clickable="false"
+        android:padding="10dp"/>
+
+    <!-- Buttons Grid -->
+    <GridLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:columnCount="4"
+        android:rowCount="5">
+
+        <!-- Row 1 -->
+        <Button android:id="@+id/btnPercent" android:text="%" style="@style/CalcButton"/>
+        <Button android:id="@+id/btnCE" android:text="CE" style="@style/CalcButton"/>
+        <Button android:id="@+id/btnClear" android:text="C" style="@style/CalcButton"/>
+        <Button android:id="@+id/btnDiv" android:text="/" style="@style/CalcButton"/>
+
+        <!-- Row 2 -->
+        <Button android:id="@+id/btn7" android:text="7" style="@style/CalcButton"/>
+        <Button android:id="@+id/btn8" android:text="8" style="@style/CalcButton"/>
+        <Button android:id="@+id/btn9" android:text="9" style="@style/CalcButton"/>
+        <Button android:id="@+id/btnMul" android:text="*" style="@style/CalcButton"/>
+
+        <!-- Row 3 -->
+        <Button android:id="@+id/btn4" android:text="4" style="@style/CalcButton"/>
+        <Button android:id="@+id/btn5" android:text="5" style="@style/CalcButton"/>
+        <Button android:id="@+id/btn6" android:text="6" style="@style/CalcButton"/>
+        <Button android:id="@+id/btnSub" android:text="-" style="@style/CalcButton"/>
+
+        <!-- Row 4 -->
+        <Button android:id="@+id/btn1" android:text="1" style="@style/CalcButton"/>
+        <Button android:id="@+id/btn2" android:text="2" style="@style/CalcButton"/>
+        <Button android:id="@+id/btn3" android:text="3" style="@style/CalcButton"/>
+        <Button android:id="@+id/btnAdd" android:text="+" style="@style/CalcButton"/>
+
+        <!-- Row 5 -->
+        <Button android:id="@+id/btnDot" android:text="." style="@style/CalcButton"/>
+        <Button android:id="@+id/btn0" android:text="0" style="@style/CalcButton"/>
+        <Button android:id="@+id/btnWrong" android:text="DEL" style="@style/CalcButton"/>
+        <Button android:id="@+id/btnEq" android:text="=" style="@style/CalcButton"/>
+
+    </GridLayout>
+
+</LinearLayout>
+
+
+
+<resources>
+    <!-- Base App Theme -->
+    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+        <!-- Customize your theme here -->
+    </style>
+
+    <!-- Calculator Button Style -->
+    <style name="CalcButton">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">70dp</item>
+        <item name="android:layout_columnWeight">1</item>
+        <item name="android:layout_rowWeight">1</item>
+        <item name="android:background">#FFFFFF</item>
+        <item name="android:textSize">20sp</item>
+        <item name="android:textColor">#000000</item>
+        <item name="android:padding">12dp</item>
+        <item name="android:layout_margin">6dp</item>
+    </style>
+</resources>
+
+
+
+
+
+package com.example.myapplication;
+
+import androidx.appcompat.app.AppCompatActivity;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.TextView;
+
+public class MainActivity extends AppCompatActivity {
+
+    private EditText editText;      // Main big display
+    private TextView resultView;    // Small expression line
+
+    private String currentInput = "";
+    private double firstNumber = 0.0;
+    private String operator = "";           // current pending operator
+    private boolean isNewOp = true;         // clear ET on first digit after op
+    private boolean lastEqual = false;      // last key was '='
+
+    // For % and repeated '='
+    private String lastOpBeforePercent = "";
+    private double lastOperand = 0.0;       // last RHS used for '=' repeats
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        editText = findViewById(R.id.editText);
+        resultView = findViewById(R.id.resultView);
+
+        // Number & dot buttons
+        int[] numBtnIds = {
+                R.id.btn0, R.id.btn1, R.id.btn2, R.id.btn3,
+                R.id.btn4, R.id.btn5, R.id.btn6, R.id.btn7,
+                R.id.btn8, R.id.btn9, R.id.btnDot
+        };
+
+        View.OnClickListener numberListener = v -> {
+            Button b = (Button) v;
+            String t = b.getText().toString();
+
+            if (isNewOp) {
+                currentInput = "";
+                isNewOp = false;
+                lastEqual = false;
+            }
+
+            // prevent multiple dots
+            if (t.equals(".") && currentInput.contains(".")) return;
+
+            // avoid leading zeros like "000"
+            if (currentInput.equals("0") && !t.equals(".")) currentInput = "";
+
+            currentInput += t;
+            editText.setText(currentInput);
+        };
+        for (int id : numBtnIds) {
+            View v = findViewById(id);
+            if (v != null) v.setOnClickListener(numberListener);
+        }
+
+        // Operators
+        setOpListener(R.id.btnAdd, "+");
+        setOpListener(R.id.btnSub, "-");
+        setOpListener(R.id.btnMul, "*");
+        setOpListener(R.id.btnDiv, "/");
+
+        // Percent
+        View pct = findViewById(R.id.btnPercent);
+        if (pct != null) pct.setOnClickListener(v -> applyPercent());
+
+        // Equals
+        View eq = findViewById(R.id.btnEq);
+        if (eq != null) eq.setOnClickListener(v -> calculate(true));
+
+        // Clear All (C)
+        View clear = findViewById(R.id.btnClear);
+        if (clear != null) clear.setOnClickListener(v -> clearAll());
+
+        // Clear Entry (CE)
+        View ce = findViewById(R.id.btnCE);
+        if (ce != null) ce.setOnClickListener(v -> clearEntry());
+
+        // Delete (← / DEL) — support either id you used
+        View del = findViewById(R.id.btnWrong);
+        if (del == null) del = findViewById(R.id.btnWrong);
+        if (del != null) del.setOnClickListener(v -> backspace());
+
+        // Initial text
+        editText.setText("0");
+        resultView.setText("");
+    }
+
+    private void setOpListener(int viewId, String op) {
+        View v = findViewById(viewId);
+        if (v != null) {
+            v.setOnClickListener(btn -> setOperator(op));
+        }
+    }
+
+    // === Core behaviors ===
+
+    private void setOperator(String op) {
+        // When user presses an operator:
+        // - If we already had an operator AND user typed a second number -> evaluate first
+        // - If no second number yet -> only change operator and keep ET as is
+        if (!currentInput.isEmpty()) {
+            double num = parse(currentInput);
+
+            if (operator.isEmpty() || lastEqual) {
+                // first operator after entering a number, or continuing after '='
+                firstNumber = num;
+            } else {
+                // we had an operator and a new RHS -> do intermediate evaluation
+                firstNumber = performOperation(firstNumber, num, operator);
+                editText.setText(fmt(firstNumber));           // ET updates to the intermediate result
+            }
+            currentInput = "";
+            lastEqual = false;
+        }
+
+        operator = op;
+        lastOpBeforePercent = op;
+        resultView.setText(fmt(firstNumber) + " " + operator); // ET shows current number, RT shows "A op"
+        isNewOp = true; // next digit starts fresh
+    }
+
+    private void applyPercent() {
+        // Case 1: If last key was '=', percent applies to the result repeatedly
+        if(lastEqual) {
+            double base = parse(editText.getText().toString());
+            double percentValue = base / 100.0;
+
+            editText.setText(fmt(percentValue));
+            resultView.setText(fmt(percentValue));
+
+            firstNumber = percentValue;
+            currentInput = "";
+
+            // ✅ Keep operator & lastOperand intact
+            // so '=' can still use them later
+            // (do NOT reset operator/lastOperand here)
+
+            return;
+        }
+
+
+        // Case 2: Normal percent during an operation
+        if (operator.isEmpty()) {
+            editText.setText("0");
+            resultView.setText("0");
+            currentInput = "0";
+            return;
+        }
+
+        boolean hasSecond = !currentInput.isEmpty();
+        double rhs = hasSecond ? Double.parseDouble(currentInput) : 1.0;
+        double percentValue = 0.0;
+
+        switch (operator) {
+            case "+":
+            case "-":
+                percentValue = (firstNumber * rhs) / 100.0;
+                break;
+
+            case "*":
+            case "/":
+                percentValue = rhs / 100.0;
+                break;
+        }
+
+        currentInput = String.valueOf(percentValue);
+        editText.setText(fmt(percentValue));
+        resultView.setText(fmt(firstNumber) + " " + operator + " " + fmt(percentValue));
+
+        lastOperand = percentValue;
+    }
+
+    private void calculate(boolean fromEquals) {
+        if (operator.isEmpty()) return;
+
+        double rhs;
+        if (!currentInput.isEmpty()) {
+            rhs = parse(currentInput);
+        } else {
+            // repeated '=' uses last RHS
+            rhs = lastOperand;
+        }
+
+        // Guard: if still nothing, treat as 0 for +/-, 1 for */? But we stick to lastOperand default 0.0
+        double result;
+
+        // Division by zero handling
+        if (operator.equals("/") && rhs == 0.0) {
+            editText.setText("Error");
+            resultView.setText("");
+            // reset minimal state
+            currentInput = "";
+            operator = "";
+            isNewOp = true;
+            lastEqual = false;
+            return;
+        }
+
+        result = performOperation(firstNumber, rhs, operator);
+
+        resultView.setText(fmt(firstNumber) + " " + operator + " " + fmt(rhs) + " =");
+        editText.setText(fmt(result));
+
+
+        // Update state for chaining and repeated '='
+        firstNumber = result;
+        lastOperand = rhs;
+        currentInput = "";
+        isNewOp = true;
+        lastEqual = fromEquals;
+    }
+
+    // === Edit helpers ===
+
+    private void clearAll() {
+        currentInput = "";
+        firstNumber = 0.0;
+        operator = "";
+        lastOpBeforePercent = "";
+        lastOperand = 0.0;
+        isNewOp = true;
+        lastEqual = false;
+        editText.setText("0");
+        resultView.setText("");
+    }
+
+    private void clearEntry() {
+        // CE: clear only the current entry (ET), keep pending op in RT
+        currentInput = "";
+        editText.setText("0");
+        if (!operator.isEmpty() && !lastEqual) {
+            // keep showing "A op" on RT
+            resultView.setText(fmt(firstNumber) + " " + operator);
+        }
+        // if lastEqual, CE just clears ET; RT keeps the last "A op B =" line (Windows-like)
+        isNewOp = true;
+    }
+
+    private void backspace() {
+        if (currentInput.isEmpty()) return;
+        currentInput = currentInput.substring(0, currentInput.length() - 1);
+        if (currentInput.isEmpty()) {
+            editText.setText("0");
+        } else {
+            editText.setText(currentInput);
+        }
+    }
+
+    // === Math helpers ===
+
+    private double performOperation(double a, double b, String op) {
+        switch (op) {
+            case "+": return a + b;
+            case "-": return a - b;
+            case "*": return a * b;
+            case "/": return a / b; // zero handled earlier
+        }
+        return a;
+    }
+
+    private double parse(String s) {
+        try {
+            return Double.parseDouble(s);
+        } catch (Exception e) {
+            return 0.0;
+        }
+    }
+
+    private String fmt(double value) {
+        // Format like a normal calculator, trimming trailing .0
+        if (Math.abs(value - Math.round(value)) < 1e-13) {
+            // If it's almost an integer, show without decimals
+            return String.valueOf((long) Math.round(value));
+        } else {
+            // Show up to 10 decimals but trim trailing zeros
+            return String.format("%.13f", value).replaceAll("0+$", "").replaceAll("\\.$", "");
+        }
+    }
+}
