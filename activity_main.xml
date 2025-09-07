@@ -252,34 +252,47 @@ public class MainActivity extends AppCompatActivity {
 
 
         // Case 2: Normal percent during an operation
-        if (operator.isEmpty()) {
-            editText.setText("0");
-            resultView.setText("0");
-            currentInput = "0";
-            return;
+if (operator.isEmpty()) {
+    editText.setText("0");
+    resultView.setText("0");
+    currentInput = "0";
+    return;
+}
+
+boolean hasSecond = !currentInput.isEmpty();
+double rhs = hasSecond ? Double.parseDouble(currentInput) : 0.0;
+double percentValue = 0.0;
+
+switch (operator) {
+    case "+":
+    case "-":
+        if (hasSecond) {
+            // e.g. 5 + 1 % → 5 + (5*1/100)
+            percentValue = (firstNumber * rhs) / 100.0;
+        } else {
+            // e.g. 5 + % → 5 + (5*5/100)
+            percentValue = (firstNumber * firstNumber) / 100.0;
         }
+        break;
 
-        boolean hasSecond = !currentInput.isEmpty();
-        double rhs = hasSecond ? Double.parseDouble(currentInput) : 1.0;
-        double percentValue = 0.0;
-
-        switch (operator) {
-            case "+":
-            case "-":
-                percentValue = (firstNumber * rhs) / 100.0;
-                break;
-
-            case "*":
-            case "/":
-                percentValue = rhs / 100.0;
-                break;
+    case "*":
+    case "/":
+        if (hasSecond) {
+            // e.g. 5 * 1 % → 5 * (1/100)
+            percentValue = rhs / 100.0;
+        } else {
+            // e.g. 5 * % → 5 * (5/100)
+            percentValue = firstNumber / 100.0;
         }
+        break;
+}
 
-        currentInput = String.valueOf(percentValue);
-        editText.setText(fmt(percentValue));
-        resultView.setText(fmt(firstNumber) + " " + operator + " " + fmt(percentValue));
+currentInput = String.valueOf(percentValue);
+editText.setText(fmt(percentValue));
+resultView.setText(fmt(firstNumber) + " " + operator + " " + fmt(percentValue));
 
-        lastOperand = percentValue;
+// Store last operand for '='
+lastOperand = percentValue;
     }
 
     private void calculate(boolean fromEquals) {
@@ -379,13 +392,28 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private String fmt(double value) {
-        // Format like a normal calculator, trimming trailing .0
-        if (Math.abs(value - Math.round(value)) < 1e-13) {
-            // If it's almost an integer, show without decimals
-            return String.valueOf((long) Math.round(value));
-        } else {
-            // Show up to 10 decimals but trim trailing zeros
-            return String.format("%.13f", value).replaceAll("0+$", "").replaceAll("\\.$", "");
+        if (Double.isNaN(value) || Double.isInfinite(value)) {
+            return "Error";
         }
+
+        double absVal = Math.abs(value);
+
+        // Integer-like values (avoid trailing .0)
+        if (Math.abs(value - Math.round(value)) < 1e-13) {
+            if (absVal < 1e14) {
+                return String.valueOf((long) Math.round(value));
+            }
+        }
+
+        // Switch to scientific notation for very small or large numbers
+        if ((absVal != 0 && absVal < 1e-6) || absVal >= 1e14) {
+            return String.format("%.13e", value)
+                    .replaceAll("0+e", "e")   // trim trailing zeros before exponent
+                    .replaceAll("\\.e", "e"); // remove dot if no decimals
+        }
+
+        // Normal fixed-point with trimming
+        String s = String.format("%.13f", value);
+        return s.replaceAll("0+$", "").replaceAll("\\.$", "");
     }
 }
